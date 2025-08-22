@@ -1,0 +1,30 @@
+[project]
+name = "fusion-hexagon"
+version = "0.1.0"
+description = "Hexagon Pattern Generator Add-In for Autodesk Fusion 360 (Mac Compatible)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C4", "PT", "SIM", "TCH", "UP", "ERA"]
+ignore = [
+    "E501",  # Line length handled by formatter
+    "N806",  # Variable in function should be lowercase (Fusion API uses camelCase)
+    "N803",  # Argument name should be lowercase (Fusion API uses camelCase)
+    "F841",  # Local variable assigned but never used (UI elements need to be created even if not referenced)
+    "E722",  # Do not use bare except (needed for Fusion API error handling)
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
