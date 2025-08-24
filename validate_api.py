@@ -14,7 +14,7 @@ class FusionAPIValidator:
     """Validator for Fusion 360 API usage."""
     
     def __init__(self):
-        # Known valid Fusion 360 API classes and methods
+        # Known valid Fusion 360 API classes and methods (v2.0 updated)
         self.valid_api = {
             'adsk.core': {
                 'Application': ['get'],
@@ -32,8 +32,12 @@ class FusionAPIValidator:
                 'ExtentDirections': ['PositiveExtentDirection', 'NegativeExtentDirection'],
                 'ToEntityExtentDefinition': ['create'],
                 'ThroughAllExtentDefinition': ['create'],
-                'BRepFace': [],
-                'Profile': [],
+                'BRepFace': ['loops'],
+                'Profile': ['profileLoops'],
+                'ProfileLoops': ['count'],
+                'BRepLoop': ['edges'],
+                'Sketch': ['project2'],
+                'ExtrudeFeatureInput': ['setOneSideExtent', 'participantBodies'],
             }
         }
         
