@@ -4,9 +4,9 @@
     "id": "a7c4b9d3-8e2f-4a6b-9c1d-5f3e7a9b2c4d",
     "author": "Jesper",
     "description": {
-        "": "Hexagon Pattern Generator - Creates hexagonal honeycomb patterns on selected faces or sketch profiles with customizable radius, spacing, and cut-through operations."
+        "": "Hexagon Pattern Generator v2.2.0 - Fixed critical unit consistency issues. All calculations now use Fusion's internal centimeter units directly without conversions. Removed the 1.25x compensation factor as it was caused by unit conversion errors."
     },
-    "version": "1.0.0",
+    "version": "2.2.0",
     "runOnStartup": false,
     "supportedOS": "windows|mac",
     "editEnabled": true

@@ -124,3 +124,95 @@ Additional Improvements and Considerations
 By following this plan and referencing Fusion 360’s API documentation at each step, we will create a functional and robust Hexagon Generator add-in for Mac. The end result will allow users on any platform to easily generate honeycomb patterns on their designs, with control over cell size, spacing, and cut depth, all implemented with correct use of the Fusion 360 API and recent enhancements.
 
 Sources: The implementation details have been derived from Autodesk’s Fusion 360 API Reference and user documentation to ensure accuracy — for example, using Sketches.add for creating sketches on planar faces ￼, applying selection filters for faces and profiles ￼, and using the modern ExtentDefinition approach for extrusions ￼ ￼. These practices align with Autodesk’s guidelines and will help avoid common errors when developing the add-in.
+
+
+## Comprehensive Fix Plan for Hexagon Generator v2.0
+
+     Phase 1: Fix Critical Cut Operation Bug
+
+     1. Fix Profile Selection in _drawHexagons():
+       - After drawing all hexagons, identify the correct profile
+       - Only select profiles with profileLoops.count > 1 (outer boundary with holes)
+       - Skip individual hexagon profiles (profileLoops.count == 1)
+     2. Improve Error Handling:
+       - Add detailed error messages for debugging
+       - Check if profiles were created correctly
+       - Validate profile selection before cut
+
+     Phase 2: Redesign Input Parameters
+
+     Replace current inputs with industry-standard terminology:
+     - Hexagon Diameter (mm) - instead of radius
+     - Wall Thickness (mm) - instead of offset
+     - Pattern Mode:
+       - "Bounded" - hexagons only within face boundary
+       - "Unbounded" - pattern extends beyond face
+     - Include Boundary checkbox - project face edges as reference
+     - Number of Sides (default 6) - allow other polygons
+
+     Phase 3: Fix Pattern Generation Algorithm
+
+     1. Correct Spacing Calculations:
+     pattern_spacing = hex_diameter + wall_thickness
+     x_spacing = pattern_spacing
+     y_spacing = pattern_spacing * math.sqrt(3) / 2
+     row_offset = pattern_spacing / 2  # For alternating rows
+     2. Center Pattern on Face:
+       - Calculate face center point
+       - Generate pattern from center outward
+       - Option for corner-aligned pattern
+
+     Phase 4: Implement Boundary Control
+
+     1. Bounded Mode:
+       - Keep current _filterValidCenters() logic
+       - Only generate hexagons fully within face
+     2. Unbounded Mode:
+       - Generate pattern 20% larger than face bounds
+       - Skip containment checking
+       - Let user manually suppress unwanted hexagons
+     3. Project Face Boundary (optional):
+     # Project face outer loop to sketch
+     face_loop = baseEntity.loops.item(0)  # Outer loop
+     for edge in face_loop.edges:
+         sketch.project(edge)  # Creates reference geometry
+
+     Phase 5: Add Advanced Features
+
+     1. Pattern Alignment Options:
+       - Center-aligned (default)
+       - Corner-aligned
+       - Custom origin point
+     2. Preview Mode:
+       - Generate sketch only (no cut)
+       - Allow user to review before cutting
+     3. Performance Optimization:
+       - Batch hexagon creation
+       - Show progress for large patterns
+
+     Phase 6: Update Documentation
+
+     1. Update README.md:
+       - Document new parameters
+       - Add troubleshooting for profile issues
+       - Include best practices
+     2. Update manifest:
+       - Version 2.0.0
+       - Update description
+
+     Files to Modify:
+
+     1. HexagonGenerator.py - Complete rewrite of core logic
+     2. HexagonGenerator.manifest - Version bump
+     3. README.md - New documentation
+     4. validate_api.py - Add new validation tests
+
+     Testing Plan:
+
+     1. Test with simple rectangular face
+     2. Test with circular face
+     3. Test with complex boundary shapes
+     4. Test both bounded and unbounded modes
+     5. Verify cut operation works correctly
+
+     This plan addresses all identified issues and transforms the add-in into a professional-grade tool matching industry expectations.

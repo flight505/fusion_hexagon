@@ -47,63 +47,118 @@ class HexagonGeneratorCommandCreatedHandler(adsk.core.CommandCreatedEventHandler
             # Create command inputs
             inputs = cmd.commandInputs
 
-            # Create a group for hexagon pattern parameters
-            patternGroup = inputs.addGroupCommandInput('patternGroup', 'Hexagon Pattern Parameters')
+            # Create a group for pattern parameters with industry-standard terminology
+            patternGroup = inputs.addGroupCommandInput('patternGroup', 'Pattern Parameters')
+            patternGroup.isExpanded = True  # Make group expandable/collapsible
+            patternGroupInputs = patternGroup.children
 
-            # Base Face/Profile selection
-            baseSelection = inputs.addSelectionInput(
-                'baseSelection', 'Base Face/Profile', 'Select a planar face or sketch profile as the base region'
+            # Base Face/Profile selection (add to pattern group)
+            baseSelection = patternGroupInputs.addSelectionInput(
+                'baseSelection', 'Base Face/Profile', 'Select a planar face or sketch profile for the pattern'
             )
             baseSelection.addSelectionFilter('PlanarFaces')
             baseSelection.addSelectionFilter('Profiles')
             baseSelection.setSelectionLimits(1, 1)
 
-            # Hexagon Radius input
-            defaultRadius = 5.0  # 5mm default
-            inputs.addValueInput(
-                'hexRadius',
-                'Hexagon Radius',
+            # Phase 2: Industry-standard terminology
+            # Hexagon Diameter input (instead of radius)
+            defaultDiameter = 1.0  # 10mm = 1cm default diameter (Fusion uses cm internally)
+            patternGroupInputs.addValueInput(
+                'hexDiameter',
+                'Hexagon Diameter',
                 'mm',
-                adsk.core.ValueInput.createByReal(defaultRadius / 10),  # Convert to cm (Fusion internal units)
+                adsk.core.ValueInput.createByReal(defaultDiameter),
             )
 
-            # Offset (spacing) input
-            defaultOffset = 1.0  # 1mm default
-            inputs.addValueInput(
-                'hexOffset', 'Offset (Spacing)', 'mm', adsk.core.ValueInput.createByReal(defaultOffset / 10)
+            # Wall Thickness input (instead of offset/spacing)
+            defaultWallThickness = 0.2  # 2mm = 0.2cm default wall thickness (Fusion uses cm internally)
+            patternGroupInputs.addValueInput(
+                'wallThickness',
+                'Wall Thickness',
+                'mm',
+                adsk.core.ValueInput.createByReal(defaultWallThickness)
+            )
+
+            # Number of Sides input (for future polygon support)
+            patternGroupInputs.addValueInput(
+                'numSides',
+                'Number of Sides',
+                '',
+                adsk.core.ValueInput.createByReal(6)  # Default to hexagon
+            )
+
+            # Pattern Mode dropdown
+            patternModeList = patternGroupInputs.addDropDownCommandInput(
+                'patternMode',
+                'Pattern Mode',
+                adsk.core.DropDownStyles.LabeledIconDropDownStyle
+            )
+            patternModeList.listItems.add('Bounded (Within Face)', True)
+            patternModeList.listItems.add('Unbounded (Extend Beyond)', False)
+
+            # Pattern Alignment dropdown
+            alignmentList = patternGroupInputs.addDropDownCommandInput(
+                'alignment',
+                'Pattern Alignment',
+                adsk.core.DropDownStyles.LabeledIconDropDownStyle
+            )
+            alignmentList.listItems.add('Center Aligned', True)
+            alignmentList.listItems.add('Corner Aligned', False)
+
+            # Orientation option
+            orientationList = patternGroupInputs.addDropDownCommandInput(
+                'orientation', 'Cell Orientation', adsk.core.DropDownStyles.LabeledIconDropDownStyle
+            )
+            orientationList.listItems.add('Pointy Top', True)
+            orientationList.listItems.add('Flat Top', False)
+
+            # Create a group for advanced options
+            advancedGroup = inputs.addGroupCommandInput('advancedGroup', 'Advanced Options')
+            advancedGroup.isExpanded = False  # Start collapsed
+            advancedGroupInputs = advancedGroup.children
+
+            # Include Boundary checkbox
+            includeBoundary = advancedGroupInputs.addBoolValueInput(
+                'includeBoundary',
+                'Project Face Boundary',
+                True,
+                '',
+                False
+            )
+
+            # Preview Mode checkbox
+            previewMode = advancedGroupInputs.addBoolValueInput(
+                'previewMode',
+                'Preview Only (No Cut)',
+                True,
+                '',
+                False
             )
 
             # Create a group for cut options
-            cutGroup = inputs.addGroupCommandInput('cutGroup', 'Cut Options (Optional)')
+            cutGroup = inputs.addGroupCommandInput('cutGroup', 'Cut Options')
+            cutGroup.isExpanded = True
+            cutGroupInputs = cutGroup.children
 
             # Cut operation checkbox
-            performCut = inputs.addBoolValueInput('performCut', 'Perform Cut Operation', True, '', False)
+            performCut = cutGroupInputs.addBoolValueInput('performCut', 'Perform Cut Operation', True, '', True)
 
             # Cut to face/plane selection
-            cutToSelection = inputs.addSelectionInput(
+            cutToSelection = cutGroupInputs.addSelectionInput(
                 'cutToSelection', 'Cut To Face/Plane', 'Select target face or plane for cut extent (optional)'
             )
             cutToSelection.addSelectionFilter('PlanarFaces')
             cutToSelection.addSelectionFilter('ConstructionPlanes')
             cutToSelection.setSelectionLimits(0, 1)
-            cutToSelection.isEnabled = False
-            cutToSelection.isVisible = False
 
             # Body to cut selection (only enabled when base is a profile)
-            bodySelection = inputs.addSelectionInput(
+            bodySelection = cutGroupInputs.addSelectionInput(
                 'bodySelection', 'Body to Cut', 'Select solid body to cut (required if base is a sketch profile)'
             )
             bodySelection.addSelectionFilter('SolidBodies')
             bodySelection.setSelectionLimits(0, 1)
             bodySelection.isEnabled = False
             bodySelection.isVisible = False
-
-            # Orientation option
-            orientationList = inputs.addDropDownCommandInput(
-                'orientation', 'Hexagon Orientation', adsk.core.DropDownStyles.LabeledIconDropDownStyle
-            )
-            orientationList.listItems.add('Pointy Top', True)
-            orientationList.listItems.add('Flat Top', False)
 
         except:
             if ui:
@@ -121,39 +176,82 @@ class HexagonGeneratorCommandInputChangedHandler(adsk.core.InputChangedEventHand
             inputs = args.inputs
             changedInput = args.input
 
-            # Handle perform cut checkbox change
-            if changedInput.id == 'performCut':
+            # Handle preview mode change
+            if changedInput.id == 'previewMode':
+                previewMode = inputs.itemById('previewMode')
                 performCut = inputs.itemById('performCut')
                 cutToSelection = inputs.itemById('cutToSelection')
                 bodySelection = inputs.itemById('bodySelection')
 
-                cutToSelection.isEnabled = performCut.value
-                cutToSelection.isVisible = performCut.value
+                # Add null checks for all inputs
+                if not previewMode or not performCut or not cutToSelection or not bodySelection:
+                    return
+                    
+                # Disable cut options in preview mode
+                performCut.isEnabled = not previewMode.value
+                if previewMode.value:
+                    performCut.value = False
+                    cutToSelection.isEnabled = False
+                    cutToSelection.isVisible = False
+                    bodySelection.isEnabled = False
+                    bodySelection.isVisible = False
 
-                # Check if base is a profile to determine if body selection is needed
-                baseSelection = inputs.itemById('baseSelection')
-                if baseSelection.selectionCount > 0:
-                    selection = baseSelection.selection(0)
-                    if selection.entity.objectType == 'adsk::fusion::Profile':
-                        bodySelection.isEnabled = performCut.value
-                        bodySelection.isVisible = performCut.value
+            # Handle perform cut checkbox change
+            elif changedInput.id == 'performCut':
+                performCut = inputs.itemById('performCut')
+                cutToSelection = inputs.itemById('cutToSelection')
+                bodySelection = inputs.itemById('bodySelection')
+                previewMode = inputs.itemById('previewMode')
+
+                # Add null checks for all inputs
+                if not performCut or not cutToSelection or not bodySelection or not previewMode:
+                    return
+                    
+                if not previewMode.value:
+                    cutToSelection.isEnabled = performCut.value
+                    cutToSelection.isVisible = performCut.value
+
+                    # Check if base is a profile to determine if body selection is needed
+                    baseSelection = inputs.itemById('baseSelection')
+                    if baseSelection.selectionCount > 0:
+                        selection = baseSelection.selection(0)
+                        if selection.entity.objectType == 'adsk::fusion::Profile':
+                            bodySelection.isVisible = performCut.value
+                            bodySelection.isEnabled = performCut.value
 
             # Handle base selection change
             elif changedInput.id == 'baseSelection':
                 baseSelection = inputs.itemById('baseSelection')
                 bodySelection = inputs.itemById('bodySelection')
                 performCut = inputs.itemById('performCut')
+                previewMode = inputs.itemById('previewMode')
 
+                # Add null checks for all inputs
+                if not baseSelection or not bodySelection or not performCut or not previewMode:
+                    return
+                
                 if baseSelection.selectionCount > 0:
                     selection = baseSelection.selection(0)
                     # If base is a profile, enable body selection when cut is enabled
-                    if selection.entity.objectType == 'adsk::fusion::Profile' and performCut.value:
-                        bodySelection.isEnabled = True
+                    if selection.entity.objectType == 'adsk::fusion::Profile' and performCut.value and not previewMode.value:
                         bodySelection.isVisible = True
+                        bodySelection.isEnabled = True
                     else:
                         bodySelection.isEnabled = False
                         bodySelection.isVisible = False
                         bodySelection.clearSelection()
+
+            # Handle pattern mode change
+            elif changedInput.id == 'patternMode':
+                patternMode = inputs.itemById('patternMode')
+                includeBoundary = inputs.itemById('includeBoundary')
+                
+                # Add null checks for all inputs
+                if not patternMode or not includeBoundary:
+                    return
+                    
+                # Enable boundary projection for bounded mode
+                includeBoundary.isEnabled = (patternMode.selectedItem.name == 'Bounded (Within Face)')
 
         except:
             if ui:
@@ -172,26 +270,54 @@ class HexagonGeneratorCommandValidateInputsHandler(adsk.core.ValidateInputsEvent
 
             # Check if base selection is made
             baseSelection = inputs.itemById('baseSelection')
-            if baseSelection.selectionCount == 0:
+            if not baseSelection or baseSelection.selectionCount == 0:
                 args.areInputsValid = False
                 return
 
-            # Check if radius is positive
-            hexRadius = inputs.itemById('hexRadius')
-            if hexRadius.value <= 0:
+            # Check if diameter is positive
+            hexDiameter = inputs.itemById('hexDiameter')
+            if not hexDiameter or hexDiameter.value <= 0:
                 args.areInputsValid = False
                 return
 
-            # Check if offset is non-negative
-            hexOffset = inputs.itemById('hexOffset')
-            if hexOffset.value < 0:
+            # Check if wall thickness is non-negative
+            wallThickness = inputs.itemById('wallThickness')
+            if not wallThickness or wallThickness.value < 0:
                 args.areInputsValid = False
                 return
 
-            # If perform cut is enabled and base is a profile, body must be selected
+            # Check number of sides is valid (3 or more)
+            numSides = inputs.itemById('numSides')
+            if not numSides or numSides.value < 3:
+                args.areInputsValid = False
+                return
+
+            # If perform cut is enabled and not in preview mode
+            previewMode = inputs.itemById('previewMode')
             performCut = inputs.itemById('performCut')
-            if performCut.value and baseSelection.selectionCount > 0:
+            
+            # Add null checks
+            if not previewMode or not performCut:
+                args.areInputsValid = False
+                return
+
+            if performCut.value and not previewMode.value and baseSelection.selectionCount > 0:
                 selection = baseSelection.selection(0)
+
+                # v2.1: Validate cut-to face is not the same as base face
+                cutToSelection = inputs.itemById('cutToSelection')
+                if cutToSelection.selectionCount > 0:
+                    cutToEntity = cutToSelection.selection(0).entity
+                    baseEntity = selection.entity
+
+                    # Check if both are faces and if they're the same face
+                    if (baseEntity.objectType == 'adsk::fusion::BRepFace' and
+                        cutToEntity.objectType == 'adsk::fusion::BRepFace' and
+                        baseEntity == cutToEntity):
+                        args.areInputsValid = False
+                        return
+
+                # Check if body selection is needed for profiles
                 if selection.entity.objectType == 'adsk::fusion::Profile':
                     bodySelection = inputs.itemById('bodySelection')
                     if bodySelection.selectionCount == 0:
@@ -214,12 +340,17 @@ class HexagonGeneratorCommandExecuteHandler(adsk.core.CommandEventHandler):
         try:
             inputs = args.command.commandInputs
 
-            # Get input values
+            # Get input values with new terminology
             baseSelection = inputs.itemById('baseSelection').selection(0)
-            hexRadius = inputs.itemById('hexRadius').value * 10  # Convert from cm to mm for clarity
-            hexOffset = inputs.itemById('hexOffset').value * 10  # Convert from cm to mm
-            performCut = inputs.itemById('performCut').value
+            hexDiameter = inputs.itemById('hexDiameter').value  # Already in cm from Fusion
+            wallThickness = inputs.itemById('wallThickness').value  # Already in cm from Fusion
+            numSides = int(inputs.itemById('numSides').value)
+            patternMode = inputs.itemById('patternMode').selectedItem.name
+            alignment = inputs.itemById('alignment').selectedItem.name
             orientation = inputs.itemById('orientation').selectedItem.name
+            includeBoundary = inputs.itemById('includeBoundary').value
+            previewMode = inputs.itemById('previewMode').value
+            performCut = inputs.itemById('performCut').value and not previewMode
 
             cutToEntity = None
             if performCut and inputs.itemById('cutToSelection').selectionCount > 0:
@@ -229,12 +360,25 @@ class HexagonGeneratorCommandExecuteHandler(adsk.core.CommandEventHandler):
             if performCut and inputs.itemById('bodySelection').selectionCount > 0:
                 targetBody = inputs.itemById('bodySelection').selection(0).entity
 
-            # Generate the hexagon pattern
+            # Generate the pattern with new parameters
             generator = HexagonPatternGenerator()
-            generator.generate(baseSelection.entity, hexRadius, hexOffset, performCut, cutToEntity, targetBody, orientation)
+            generator.generateV2(
+                baseSelection.entity,
+                hexDiameter,
+                wallThickness,
+                numSides,
+                patternMode,
+                alignment,
+                orientation,
+                includeBoundary,
+                performCut,
+                cutToEntity,
+                targetBody
+            )
 
-            # Report success
-            ui.messageBox('Hexagon pattern generated successfully!')
+            # Report success only for preview mode
+            if previewMode:
+                ui.messageBox('Pattern preview generated successfully! Review the sketch before proceeding.')
 
         except:
             if ui:
@@ -275,6 +419,50 @@ class HexagonPatternGenerator:
         except:
             raise
 
+    def generateV2(self, baseEntity, diameter, wallThickness, numSides, patternMode, alignment,
+                   orientation, includeBoundary, performCut, cutToEntity, targetBody):
+        """Generate pattern with v2.0 features and corrected algorithm."""
+        try:
+            # Create or get sketch
+            sketch = self._createSketch(baseEntity)
+
+            # Project face boundary if requested (Phase 4 feature)
+            if includeBoundary and baseEntity.objectType == 'adsk::fusion::BRepFace':
+                self._projectFaceBoundary(baseEntity, sketch)
+
+            # Get the region bounds
+            bounds = self._getRegionBounds(baseEntity, sketch)
+
+            # Convert diameter to radius for internal calculations
+            # For hexagons: diameter is the flat-to-flat distance
+            # Circumradius = flat-to-flat / √3
+            if numSides == 6:
+                radius = diameter / math.sqrt(3)
+            else:
+                # For other polygons, treat diameter as the circumscribed circle diameter
+                radius = diameter / 2
+
+            # Phase 3: Corrected pattern generation algorithm
+            centers = self._generateCentersV2(bounds, diameter, wallThickness, alignment, orientation)
+
+            # Phase 4: Boundary control
+            if patternMode == 'Bounded (Within Face)':
+                # Only include cells fully within the boundary
+                validCenters = self._filterValidCenters(centers, baseEntity, radius, sketch)
+            else:
+                # Unbounded mode - use all generated centers
+                validCenters = centers
+
+            # Draw polygons (hexagons or other n-sided shapes)
+            profiles = self._drawPolygons(sketch, validCenters, radius, numSides, orientation)
+
+            # Perform cut if requested and not in preview mode
+            if performCut and profiles:
+                self._performCut(profiles, baseEntity, cutToEntity, targetBody)
+
+        except:
+            raise
+
     def _createSketch(self, baseEntity):
         """Create a sketch on the base entity."""
         if baseEntity.objectType == 'adsk::fusion::BRepFace':
@@ -303,9 +491,8 @@ class HexagonPatternGenerator:
         """Generate potential hexagon center points."""
         centers = []
 
-        # Convert radius and offset to internal units (cm)
-        r = radius / 10
-        o = offset / 10
+        r = radius  # Already in cm
+        o = offset  # Already in cm
 
         if orientation == 'Pointy Top':
             # Horizontal spacing
@@ -349,7 +536,7 @@ class HexagonPatternGenerator:
     def _filterValidCenters(self, centers, baseEntity, radius, sketch):
         """Filter centers to only include those that fit within the region."""
         validCenters = []
-        r = radius / 10  # Convert to cm
+        r = radius  # Already in cm
 
         for center in centers:
             # Check if hexagon at this center fits within the region
@@ -418,7 +605,7 @@ class HexagonPatternGenerator:
 
     def _drawHexagons(self, sketch, centers, radius, orientation):
         """Draw hexagons in the sketch."""
-        r = radius / 10  # Convert to cm
+        r = radius  # Already in cm
         profiles = []
 
         for center in centers:
@@ -431,9 +618,30 @@ class HexagonPatternGenerator:
                 pt2 = adsk.core.Point3D.create(vertices[(i + 1) % 6]['x'], vertices[(i + 1) % 6]['y'], 0)
                 lines.addByTwoPoints(pt1, pt2)
 
-        # Get all profiles from the sketch
+        # v2.1 Fix: Correctly identify hexagon profiles for cutting
+        # The hexagons are the holes/voids we want to cut out
+        # Each hexagon creates a profile with profileLoops.count == 1
+        # We need to collect these individual hexagon profiles, NOT the outer boundary
+
+        # First, check if we drew any hexagons
+        if len(centers) == 0:
+            return profiles
+
+        # Get the bounding box of the sketch to identify the outer boundary
+        sketchBounds = sketch.boundingBox
+
         for profile in sketch.profiles:
-            profiles.append(profile)
+            # Skip profiles that are likely the outer boundary
+            profileBounds = profile.boundingBox
+
+            # Check if this profile is much smaller than the sketch bounds
+            # (indicating it's a hexagon, not the outer boundary)
+            widthRatio = (profileBounds.maxPoint.x - profileBounds.minPoint.x) / (sketchBounds.maxPoint.x - sketchBounds.minPoint.x)
+            heightRatio = (profileBounds.maxPoint.y - profileBounds.minPoint.y) / (sketchBounds.maxPoint.y - sketchBounds.minPoint.y)
+
+            # If the profile is less than 50% of the sketch size, it's likely a hexagon
+            if widthRatio < 0.5 and heightRatio < 0.5:
+                profiles.append(profile)
 
         return profiles
 
@@ -475,6 +683,152 @@ class HexagonPatternGenerator:
         except:
             raise
 
+    def _projectFaceBoundary(self, face, sketch):
+        """Project face boundary edges to sketch as reference."""
+        try:
+            # Get the outer loop of the face
+            outerLoop = face.loops.item(0)  # First loop is always the outer boundary
+
+            # Project each edge in the loop to the sketch
+            for edge in outerLoop.edges:
+                # Use the simple project method for compatibility
+                sketch.project(edge)
+
+        except:
+            # Silently fail if projection not supported
+            pass
+
+    def _generateCentersV2(self, bounds, diameter, wallThickness, alignment, orientation):
+        """Generate pattern centers with v2.1.2 corrected honeycomb algorithm."""
+        centers = []
+
+        d = diameter  # Already in cm
+        w = wallThickness  # Already in cm
+
+        # v2.1.2 Fix: Correct honeycomb spacing based on hexagon geometry
+        # For hexagons with flat-to-flat distance d and wall thickness w:
+        # The side length a = d/√3
+        # Adjacent hexagons are separated by wall thickness w
+        # So the effective flat-to-flat for spacing = d + w
+        # Then the effective side length = (d + w)/√3
+        
+        # Calculate the effective side length for spacing
+        effective_flat_to_flat = d + w
+        effective_side_length = effective_flat_to_flat / math.sqrt(3)
+
+        if orientation == 'Pointy Top':
+            # For pointy-top hexagons:
+            # Based on user measurement: center-to-center = √3 * (d + w)
+            # This suggests the spacing should be multiplied by √3
+            x_spacing = math.sqrt(3) * effective_flat_to_flat  
+            y_spacing = 1.5 * effective_flat_to_flat
+            row_offset = x_spacing / 2
+        else:  # Flat Top
+            # For flat-top hexagons:
+            # Horizontal spacing = 1.5 * effective_flat_to_flat
+            # Vertical spacing = √3 * effective_flat_to_flat
+            x_spacing = 1.5 * effective_flat_to_flat
+            y_spacing = math.sqrt(3) * effective_flat_to_flat
+            row_offset = x_spacing / 2
+
+        # Calculate pattern origin based on alignment
+        if alignment == 'Center Aligned':
+            # Center the pattern on the face
+            center_x = (bounds['minX'] + bounds['maxX']) / 2
+            center_y = (bounds['minY'] + bounds['maxY']) / 2
+
+            # Calculate how many cells fit in each direction
+            width = bounds['maxX'] - bounds['minX']
+            height = bounds['maxY'] - bounds['minY']
+
+            cols = int(width / x_spacing) + 2
+            rows = int(height / y_spacing) + 2
+
+            # Start from center and work outward
+            start_x = center_x - (cols // 2) * x_spacing
+            start_y = center_y - (rows // 2) * y_spacing
+        else:  # Corner Aligned
+            # Start from bottom-left corner
+            margin = d / 2 + w
+            start_x = bounds['minX'] + margin
+            start_y = bounds['minY'] + margin
+
+            width = bounds['maxX'] - bounds['minX']
+            height = bounds['maxY'] - bounds['minY']
+
+            cols = int(width / x_spacing) + 1
+            rows = int(height / y_spacing) + 1
+
+        # Generate grid of centers
+        for row in range(rows):
+            y = start_y + row * y_spacing
+            for col in range(cols):
+                x = start_x + col * x_spacing
+
+                # Apply row offset for honeycomb pattern
+                if row % 2 == 1:
+                    x += row_offset
+
+                centers.append({'x': x, 'y': y})
+
+        return centers
+
+    def _drawPolygons(self, sketch, centers, radius, numSides, orientation):
+        """Draw n-sided polygons (default hexagons) in the sketch."""
+        r = radius  # Already in cm
+        profiles = []
+
+        for center in centers:
+            vertices = self._getPolygonVertices(center['x'], center['y'], r, numSides, orientation)
+
+            # Draw polygon edges
+            lines = sketch.sketchCurves.sketchLines
+            for i in range(numSides):
+                pt1 = adsk.core.Point3D.create(vertices[i]['x'], vertices[i]['y'], 0)
+                pt2 = adsk.core.Point3D.create(vertices[(i + 1) % numSides]['x'],
+                                              vertices[(i + 1) % numSides]['y'], 0)
+                lines.addByTwoPoints(pt1, pt2)
+
+        # v2.1 Fix: Collect individual polygon profiles for cutting
+        if len(centers) == 0:
+            return profiles
+
+        # Get sketch bounds to identify outer boundary
+        sketchBounds = sketch.boundingBox
+
+        for profile in sketch.profiles:
+            profileBounds = profile.boundingBox
+
+            # Check if profile is smaller than sketch (individual polygon, not boundary)
+            widthRatio = (profileBounds.maxPoint.x - profileBounds.minPoint.x) / (sketchBounds.maxPoint.x - sketchBounds.minPoint.x)
+            heightRatio = (profileBounds.maxPoint.y - profileBounds.minPoint.y) / (sketchBounds.maxPoint.y - sketchBounds.minPoint.y)
+
+            if widthRatio < 0.5 and heightRatio < 0.5:
+                profiles.append(profile)
+
+        return profiles
+
+    def _getPolygonVertices(self, cx, cy, radius, numSides, orientation):
+        """Calculate vertices for an n-sided polygon."""
+        vertices = []
+
+        # Adjust start angle based on orientation
+        if numSides == 6:  # Hexagon
+            startAngle = 0 if orientation == 'Pointy Top' else math.pi / 6
+        else:
+            # For other polygons, start at top
+            startAngle = -math.pi / 2
+
+        angleStep = 2 * math.pi / numSides
+
+        for i in range(numSides):
+            angle = startAngle + i * angleStep
+            x = cx + radius * math.cos(angle)
+            y = cy + radius * math.sin(angle)
+            vertices.append({'x': x, 'y': y})
+
+        return vertices
+
 
 def run(context):
     """Entry point for the add-in."""
@@ -508,8 +862,7 @@ def run(context):
                     panel.controls.addCommand(cmdDef)
 
         # Make the command available
-        if context['IsApplicationStartup'] is False:
-            ui.messageBox('Hexagon Pattern Generator Add-In loaded successfully')
+        # Removed startup message for cleaner experience
 
     except:
         if ui:

@@ -9,6 +9,7 @@ eza . --tree --git-ignore
 > Read the files below to get the context of the project. 
 
 > list of files:
+plan.md
 CLAUDE.md
-notes.md
+README.md
 > Dont do anything else.
