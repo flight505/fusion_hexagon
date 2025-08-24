@@ -705,30 +705,22 @@ class HexagonPatternGenerator:
         d = diameter  # Already in cm
         w = wallThickness  # Already in cm
 
-        # v2.1.2 Fix: Correct honeycomb spacing based on hexagon geometry
-        # For hexagons with flat-to-flat distance d and wall thickness w:
-        # The side length a = d/√3
-        # Adjacent hexagons are separated by wall thickness w
-        # So the effective flat-to-flat for spacing = d + w
-        # Then the effective side length = (d + w)/√3
+        # v2.2.1 Fix: Simple and correct spacing for wall thickness
+        # For hexagon holes separated by wall thickness w:
+        # The spacing should ensure minimum edge-to-edge distance equals w
         
-        # Calculate the effective side length for spacing
-        effective_flat_to_flat = d + w
-        effective_side_length = effective_flat_to_flat / math.sqrt(3)
-
         if orientation == 'Pointy Top':
-            # For pointy-top hexagons:
-            # Based on user measurement: center-to-center = √3 * (d + w)
-            # This suggests the spacing should be multiplied by √3
-            x_spacing = math.sqrt(3) * effective_flat_to_flat  
-            y_spacing = 1.5 * effective_flat_to_flat
+            # For pointy-top: horizontal neighbors have flat sides facing each other
+            # Spacing = diameter + wall_thickness gives exact wall thickness between flat sides
+            x_spacing = d + w
+            # Maintain proper hexagonal grid proportions  
+            y_spacing = x_spacing * math.sqrt(3) / 2
             row_offset = x_spacing / 2
         else:  # Flat Top
-            # For flat-top hexagons:
-            # Horizontal spacing = 1.5 * effective_flat_to_flat
-            # Vertical spacing = √3 * effective_flat_to_flat
-            x_spacing = 1.5 * effective_flat_to_flat
-            y_spacing = math.sqrt(3) * effective_flat_to_flat
+            # For flat-top: vertical neighbors have flat sides facing each other
+            y_spacing = d + w
+            # Maintain proper hexagonal grid proportions
+            x_spacing = y_spacing * math.sqrt(3) / 2  
             row_offset = x_spacing / 2
 
         # Calculate pattern origin based on alignment

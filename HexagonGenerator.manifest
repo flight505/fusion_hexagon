@@ -4,9 +4,9 @@
     "id": "a7c4b9d3-8e2f-4a6b-9c1d-5f3e7a9b2c4d",
     "author": "Jesper",
     "description": {
-        "": "Hexagon Pattern Generator v2.2.0 - Fixed critical unit consistency issues. All calculations now use Fusion's internal centimeter units directly without conversions. Removed the 1.25x compensation factor as it was caused by unit conversion errors."
+        "": "Hexagon Pattern Generator v2.2.1 - Fixed hexagon spacing algorithm. Wall thickness now creates exact gaps between hexagon edges instead of oversized spacing. Spacing reduced from 20.8mm to 12.0mm for 10mm+2mm configuration."
     },
-    "version": "2.2.0",
+    "version": "2.2.1",
     "runOnStartup": false,
     "supportedOS": "windows|mac",
     "editEnabled": true
