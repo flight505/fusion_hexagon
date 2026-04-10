@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hexagon Generator Help</title>
+<style>
+body { font-family: -apple-system, 'Segoe UI', sans-serif; margin: 20px; color: #333; max-width: 500px; }
+h1 { font-size: 18px; margin-bottom: 4px; }
+h2 { font-size: 14px; color: #666; margin-top: 16px; }
+p, li { font-size: 13px; line-height: 1.5; }
+ul, ol { padding-left: 20px; }
+a { color: #0078d4; }
+.section { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<h1>Hexagon Generator</h1>
+<p>Creates hexagonal patterns (honeycomb) on faces or sketch regions. Useful for weight reduction, ventilation, decorative patterns, and structural lightweighting in 3D printed parts.</p>
+
+<div class="section">
+<h2>Quick Start</h2>
+<ol>
+<li>Click <b>Solid &rarr; 3D Print Tools &rarr; Hexagon Generator</b></li>
+<li>Select the face to pattern (or a sketch region)</li>
+<li>Set hexagon size and wall thickness</li>
+<li>Choose Cut (through-holes) or Emboss (raised pattern)</li>
+<li>Click OK</li>
+</ol>
+</div>
+
+<div class="section">
+<h2>Parameters</h2>
+<ul>
+<li><b>Hexagon Size</b> &mdash; flat-to-flat distance of each hex</li>
+<li><b>Wall Thickness</b> &mdash; material between hexagons</li>
+<li><b>Include Boundary</b> &mdash; whether partial hexes at edges are kept</li>
+<li><b>Depth</b> &mdash; how deep to cut or emboss</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>FDM Tips</h2>
+<ul>
+<li>Wall thickness &geq; 2 × nozzle diameter (0.8mm for 0.4mm nozzle)</li>
+<li>Larger hexes print faster with less support</li>
+<li>For structural lightweighting: 10–15mm hex, 1.5mm walls</li>
+<li>For ventilation: 5–8mm hex, 1mm walls</li>
+</ul>
+</div>
+
+<p><a href="https://github.com/flight505/Hexagon">Documentation &amp; Source on GitHub</a></p>
+</body>
+</html>

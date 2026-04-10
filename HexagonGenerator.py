@@ -376,9 +376,22 @@ class HexagonGeneratorCommandExecuteHandler(adsk.core.CommandEventHandler):
                 targetBody
             )
 
-            # Report success only for preview mode
+            # Log committed params for reproducibility
+            parts = [
+                f'hex={hexDiameter*10:g}mm',
+                f'wall={wallThickness*10:g}mm',
+                f'sides={numSides}',
+                f'mode={patternMode}',
+                f'align={alignment}',
+                f'orient={orientation}',
+            ]
+            if includeBoundary:
+                parts.append('with_boundary')
             if previewMode:
-                ui.messageBox('Pattern preview generated successfully! Review the sketch before proceeding.')
+                parts.append('preview')
+            if performCut:
+                parts.append('cut')
+            adsk.core.Application.get().log('[HexagonGenerator] pattern ' + ' '.join(parts))
 
         except:
             if ui:
@@ -844,14 +857,24 @@ def run(context):
         cmdDef.commandCreated.add(onCommandCreated)
         handlers.append(onCommandCreated)
 
-        # Add the command to the Solid > Create panel
+        # Add the command to the shared "3D Print Tools" panel on the Solid tab
         workspace = ui.workspaces.itemById('FusionSolidEnvironment')
         if workspace:
-            panel = workspace.toolbarPanels.itemById('SolidCreatePanel')
-            if panel:
-                cmdControl = panel.controls.itemById('HexagonGeneratorCmd')
-                if not cmdControl:
-                    panel.controls.addCommand(cmdDef)
+            solid_tab = workspace.toolbarTabs.itemById('SolidTab')
+            if solid_tab:
+                panel = solid_tab.toolbarPanels.itemById('flight505_3DPrintTools_panel')
+                if not panel:
+                    panel = solid_tab.toolbarPanels.add(
+                        'flight505_3DPrintTools_panel',
+                        '3D Print Tools',
+                        'SolidModifyPanel',
+                        False,
+                    )
+                if panel:
+                    cmdControl = panel.controls.itemById('HexagonGeneratorCmd')
+                    if not cmdControl:
+                        ctrl = panel.controls.addCommand(cmdDef)
+                        ctrl.isPromotedByDefault = True
 
         # Make the command available
         # Removed startup message for cleaner experience
@@ -864,14 +887,22 @@ def run(context):
 def stop(context):
     """Clean up when the add-in is stopped."""
     try:
-        # Remove the command from the UI
+        # Remove the command from the shared panel (and legacy panel for safety)
         workspace = ui.workspaces.itemById('FusionSolidEnvironment')
         if workspace:
-            panel = workspace.toolbarPanels.itemById('SolidCreatePanel')
-            if panel:
-                cmdControl = panel.controls.itemById('HexagonGeneratorCmd')
-                if cmdControl:
-                    cmdControl.deleteMe()
+            solid_tab = workspace.toolbarTabs.itemById('SolidTab')
+            for pid in ('flight505_3DPrintTools_panel', 'SolidCreatePanel'):
+                panel = None
+                if solid_tab:
+                    panel = solid_tab.toolbarPanels.itemById(pid)
+                if not panel:
+                    panel = workspace.toolbarPanels.itemById(pid)
+                if panel:
+                    cmdControl = panel.controls.itemById('HexagonGeneratorCmd')
+                    if cmdControl:
+                        cmdControl.deleteMe()
+                    if pid == 'flight505_3DPrintTools_panel' and panel.controls.count == 0:
+                        panel.deleteMe()
 
         # Delete the command definition
         cmdDef = ui.commandDefinitions.itemById('HexagonGeneratorCmd')

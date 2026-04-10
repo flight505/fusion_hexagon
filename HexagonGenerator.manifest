@@ -4,7 +4,7 @@
     "id": "a7c4b9d3-8e2f-4a6b-9c1d-5f3e7a9b2c4d",
     "author": "Jesper",
     "description": {
-        "": "Hexagon Pattern Generator v2.2.1 - Fixed hexagon spacing algorithm. Wall thickness now creates exact gaps between hexagon edges instead of oversized spacing. Spacing reduced from 20.8mm to 12.0mm for 10mm+2mm configuration."
+        "": "Create hexagonal patterns (honeycomb) on faces or sketch regions. Useful for weight reduction, ventilation, decorative patterns, and structural lightweighting in 3D printed parts."
     },
     "version": "2.2.1",
     "runOnStartup": false,
