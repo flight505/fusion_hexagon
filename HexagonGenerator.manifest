@@ -6,7 +6,7 @@
     "description": {
         "": "Create hexagonal patterns (honeycomb) on faces or sketch regions. Useful for weight reduction, ventilation, decorative patterns, and structural lightweighting in 3D printed parts."
     },
-    "version": "2.2.1",
+    "version": "3.0.0",
     "runOnStartup": false,
     "supportedOS": "windows|mac",
     "editEnabled": true
